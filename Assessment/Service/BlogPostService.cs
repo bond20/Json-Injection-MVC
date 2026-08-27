@@ -1,11 +1,11 @@
-﻿using Assessment.Models;
+using Assessment.Interface;
+using Assessment.Models;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using Newtonsoft.Json;
 using System.IO;
-using Assessment.Interface;
+using System.Linq;
+using System.Web.Hosting;
 
 namespace Assessment.Service
 {
@@ -15,12 +15,7 @@ namespace Assessment.Service
 
         public BlogPostService()
         {
-            // Set the path to your JSON file
-            string jsonFilePath = "Path/To/Your/Blog-Posts.json";
-
-            // Load data from the JSON file using Newtonsoft.Json
-            var jsonString = File.ReadAllText(jsonFilePath);
-            _blogPosts = JsonConvert.DeserializeObject<List<BlogPostModel>>(jsonString);
+            _blogPosts = LoadBlogPosts();
         }
 
         public List<BlogPostModel> GetAllBlogPosts()
@@ -41,6 +36,44 @@ namespace Assessment.Service
         public List<BlogPostModel> GetBlogPosts()
         {
             return _blogPosts;
+        }
+
+        private static List<BlogPostModel> LoadBlogPosts()
+        {
+            var jsonFilePath = ResolveJsonPath();
+            if (string.IsNullOrWhiteSpace(jsonFilePath) || !File.Exists(jsonFilePath))
+            {
+                return new List<BlogPostModel>();
+            }
+
+            var jsonString = File.ReadAllText(jsonFilePath);
+            var document = JsonConvert.DeserializeObject<BlogPostsDocument>(jsonString);
+            return document == null || document.BlogPosts == null
+                ? new List<BlogPostModel>()
+                : document.BlogPosts;
+        }
+
+        private static string ResolveJsonPath()
+        {
+            try
+            {
+                var hostedPath = HostingEnvironment.MapPath("~/App_Data/Blog-Posts.json");
+                if (!string.IsNullOrWhiteSpace(hostedPath))
+                {
+                    return hostedPath;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Data", "Blog-Posts.json");
+        }
+
+        private sealed class BlogPostsDocument
+        {
+            [JsonProperty("blogPosts")]
+            public List<BlogPostModel> BlogPosts { get; set; }
         }
     }
 }
